@@ -11,3 +11,5 @@
 == 開発に使用しているツール
 
 * Unity 2020.3.19f1
+* Mixed Reality Toolkit Foundation 2.7.2
+* Mixed Reality OpenXR Plugin 1.1.2
