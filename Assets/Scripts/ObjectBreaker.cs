@@ -1,12 +1,9 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
 public class ObjectBreaker : MonoBehaviour
 {
-    // extra effects to be instantiated
-    public Transform targetExplode;
-
     // Start is called before the first frame update
     void Start()
     {
@@ -15,138 +12,114 @@ public class ObjectBreaker : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        
     }
 
+    // ObjectBreaker スクリプトをアタッチしたオブジェクトが別のオブジェクトと接触した時に呼ばれる
     void OnCollisionEnter(Collision collision)
     {
-        Debug.Log("Hit"); // ���O��\������
-        Explode(targetExplode);
+        BreakThisGameObject();
     }
 
-    void Explode(Transform target)
+    private void BreakThisGameObject()
     {
-        // fx
-        //exploPrefab.localScale = new Vector3(0.25f,0.25f,0.25f);
-        //Transform clone = Instantiate(exploPrefab, target.position, Quaternion.identity) as Transform;
-        //Destroy(clone.gameObject, 1);
+        // 破片のオブジェクトを新規に作る
+        createPieces();
 
-        //Transform clone = Instantiate(smokePrefab, target.position, Quaternion.identity) as Transform;
-        //Destroy(clone.gameObject, 10);
+        // 自身のオブジェクトは消す
+        Destroy(this.gameObject);
+    }
 
-        Mesh mesh = target.GetComponent<MeshFilter>().mesh;
-        Vector3[] vertices = mesh.vertices;
-        Vector3[] normals = mesh.normals;
+    private void createPieces()
+    {
+        Mesh mesh = this.gameObject.GetComponent<MeshFilter>().mesh;
         int[] triangles = mesh.triangles;
-        Vector2[] uvs = mesh.uv;
-        int index = 0;
-
-        // remove collider from original
-        target.GetComponent<Collider>().enabled = false;
-
-        // get each face
-        for (int i = 0; i < triangles.Length; i += 3)
+        for(int i = 0; i < triangles.Length; i += 3)
         {
-            // TODO: inherit speed, spin...?
-            Vector3 averageNormal = (normals[triangles[i]] + normals[triangles[i + 1]] + normals[triangles[i + 2]]).normalized;
-            Vector3 s = target.GetComponent<Renderer>().bounds.size;
-            float extrudeSize = ((s.x + s.y + s.z) / 3) * 0.3f;
-            CreateMeshPiece(extrudeSize, target.transform.position, target.GetComponent<Renderer>().material, index, averageNormal, vertices[triangles[i]], vertices[triangles[i + 1]], vertices[triangles[i + 2]], uvs[triangles[i]], uvs[triangles[i + 1]], uvs[triangles[i + 2]]);
-            index++;
+            int pieceIndex = i / 3;
+            int[] triangle = { triangles[i], triangles[i+1] , triangles[i+2] };
+
+            //１つの三角形ポリゴンを元に、１つの破片オブジェクトを作る
+            createOnePieceFromTriangle(pieceIndex, triangle);
         }
-        // destroy original
-        Destroy(target.gameObject);
     }
 
-    void CreateMeshPiece(float extrudeSize, Vector3 pos, Material mat, int index, Vector3 faceNormal, Vector3 v1, Vector3 v2, Vector3 v3, Vector2 uv1, Vector2 uv2, Vector2 uv3)
+    private void createOnePieceFromTriangle(int pieceIndex, int[] triangle)
     {
-        GameObject go = new GameObject("piece_" + index);
+        GameObject piece = new GameObject("piece_" + pieceIndex);
 
-        Mesh mesh = go.AddComponent<MeshFilter>().mesh;
-        go.AddComponent<MeshRenderer>();
-//        go.tag = "Explodable"; // set this only if should be able to explode this piece also
-        go.GetComponent<Renderer>().material = mat;
-        go.transform.position = pos;
-        Vector3 testscale = new Vector3(0.25f, 0.25f, 0.25f);
-        go.transform.localScale = testscale;
+        piece.transform.position = this.gameObject.transform.position;
+        piece.transform.rotation = this.gameObject.transform.rotation;
+        piece.transform.localScale = this.gameObject.transform.localScale;
 
-        Vector3[] vertices = new Vector3[3 * 4];
-        int[] triangles = new int[3 * 4];
-        Vector2[] uvs = new Vector2[3 * 4];
+        //破片オブジェクトとして、テトラ要素を作る
+        Mesh pieceMesh = piece.AddComponent<MeshFilter>().mesh;
+        setTetraMeshFromTriangle(ref pieceMesh, ref triangle);
 
-        // get centroid
-        Vector3 v4 = (v1 + v2 + v3) / 3;
-        // extend to backwards
-        v4 = v4 + (-faceNormal) * extrudeSize;
+        Material pieceMaterial = piece.AddComponent<MeshRenderer>().material;
+        pieceMaterial = this.gameObject.GetComponent<MeshRenderer>().material;
 
-        // not shared vertices
-        // orig face
-        //vertices[0] = (v1);
-        vertices[0] = (v1);
-        vertices[1] = (v2);
-        vertices[2] = (v3);
-        // right face
-        vertices[3] = (v1);
-        vertices[4] = (v2);
-        vertices[5] = (v4);
-        // left face
-        vertices[6] = (v1);
-        vertices[7] = (v3);
-        vertices[8] = (v4);
-        // bottom face
-        vertices[9] = (v2);
-        vertices[10] = (v3);
-        vertices[11] = (v4);
+        piece.AddComponent<Rigidbody>();
 
-        // orig face
-        triangles[0] = 0;
-        triangles[1] = 1;
-        triangles[2] = 2;
-        //  right face
-        triangles[3] = 5;
-        triangles[4] = 4;
-        triangles[5] = 3;
-        //  left face
-        triangles[6] = 6;
-        triangles[7] = 7;
-        triangles[8] = 8;
-        //  bottom face
-        triangles[9] = 11;
-        triangles[10] = 10;
-        triangles[11] = 9;
+        MeshCollider pieceMeshCollider = piece.AddComponent<MeshCollider>();
+        pieceMeshCollider.sharedMesh = pieceMesh;
+        pieceMeshCollider.convex = true;
 
-        // orig face
-        uvs[0] = uv1;
-        uvs[1] = uv2;
-        uvs[2] = uv3; // todo
-                      // right face
-        uvs[3] = uv1;
-        uvs[4] = uv2;
-        uvs[5] = uv3; // todo
+        piece.AddComponent<Microsoft.MixedReality.Toolkit.UI.ObjectManipulator>();
+    }
 
-        // left face
-        uvs[6] = uv1;
-        uvs[7] = uv3;
-        uvs[8] = uv3;   // todo
-                        // bottom face (mirror?) or custom color? or fixed from uv?
-        uvs[9] = uv1;
-        uvs[10] = uv2;
-        uvs[11] = uv1; // todo
+    private void setTetraMeshFromTriangle(ref Mesh tetraMesh, ref int[] triangle) {
+        Vector3[] tetraMeshVertices = calculateTetraMeshVertices(ref triangle);
+        int[] tetraMeshTriangles = {0,  1,  2,
+                                    5,  4,  3,
+                                    6,  7,  8,
+                                    11, 10, 9};
+        Vector2[] tetraMeshUV = calculateTetraMeshUV(ref triangle);
 
-        mesh.vertices = vertices;
-        mesh.uv = uvs;
-        mesh.triangles = triangles;
-        mesh.RecalculateBounds();
-        mesh.RecalculateNormals();
+        tetraMesh.vertices = tetraMeshVertices;
+        tetraMesh.triangles = tetraMeshTriangles;
+        tetraMesh.uv = tetraMeshUV;
+        tetraMesh.RecalculateBounds();
+        tetraMesh.RecalculateNormals();
+    }
 
-        //CalculateMeshTangents(mesh);
+    private Vector3[] calculateTetraMeshVertices(ref int[] triangle) {
+        Vector3[] tetraVertices = new Vector3[4];
+        Vector3[] thisGameObjectVertices = this.gameObject.GetComponent<MeshFilter>().mesh.vertices;
+        tetraVertices[0] = thisGameObjectVertices[triangle[0]];
+        tetraVertices[1] = thisGameObjectVertices[triangle[1]];
+        tetraVertices[2] = thisGameObjectVertices[triangle[2]];
+        Vector3[] thisGameObjectNormals = this.gameObject.GetComponent<MeshFilter>().mesh.normals;
+        Vector3 triangleNormal = thisGameObjectNormals[triangle[0]] +
+                                 thisGameObjectNormals[triangle[1]] +
+                                 thisGameObjectNormals[triangle[2]];
+        triangleNormal.Normalize();
 
-        go.AddComponent<Rigidbody>();
-        MeshCollider mc = go.AddComponent<MeshCollider>();
+        Vector3 thisGameObjectBounds = this.gameObject.GetComponent<MeshFilter>().mesh.bounds.size;
+        float shiftValue = (thisGameObjectBounds.x + thisGameObjectBounds.y + thisGameObjectBounds.z) / 3.0f * 0.3f;
 
-        mc.sharedMesh = mesh;
-        mc.convex = true;
+        // 三角形ポリゴンの幾何中心を法線方向にずらした位置をテトラ要素の 4 点目にする
+        Vector3 triangleCentroid = (tetraVertices[0] + tetraVertices[1] + tetraVertices[2]) / 3.0f;
+        tetraVertices[3] = triangleCentroid - triangleNormal * shiftValue;
 
-        //go.AddComponent<MeshFader>();
+        Vector3[] ret = { tetraVertices[0], tetraVertices[1], tetraVertices[2],
+                          tetraVertices[0], tetraVertices[1], tetraVertices[3],
+                          tetraVertices[0], tetraVertices[2], tetraVertices[3],
+                          tetraVertices[1], tetraVertices[2], tetraVertices[3]};
+        return ret;
+    }
+
+    private Vector2[] calculateTetraMeshUV(ref int[] triangle)
+    {
+        Vector3[] tetraUV = new Vector3[4];
+        Vector2[] thisGameObjectUV = this.gameObject.GetComponent<MeshFilter>().mesh.uv;
+        tetraUV[0] = thisGameObjectUV[triangle[0]];
+        tetraUV[1] = thisGameObjectUV[triangle[1]];
+        tetraUV[2] = thisGameObjectUV[triangle[2]];
+        tetraUV[3] = (tetraUV[0] + tetraUV[1] + tetraUV[2]) / 3.0f;
+        Vector2[] ret = { tetraUV[0], tetraUV[1], tetraUV[2],
+                          tetraUV[0], tetraUV[1], tetraUV[3],
+                          tetraUV[0], tetraUV[2], tetraUV[3],
+                          tetraUV[1], tetraUV[2], tetraUV[3]};
+        return ret;
     }
 }
