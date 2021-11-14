@@ -13,3 +13,14 @@
 * Unity 2020.3.19f1
 * Mixed Reality Toolkit Foundation 2.7.2
 * Mixed Reality OpenXR Plugin 1.1.2
+
+== 開発に使用しているアセット
+
+[WARNING]
+====
+公開リポジトリには、Unity のアセットストアからインポートしたファイルを置けないため、 .meta ファイルだけ置いている。 +
+そのため、開発環境を構築するには、各々の Unity アカウントでアセットストアから下記のアセットをインポートする必要がある。
+====
+
+* Plates, Bowls & Mugs Pack +
+https://assetstore.unity.com/packages/3d/props/interior/plates-bowls-mugs-pack-146682
